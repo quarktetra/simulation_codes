@@ -18,6 +18,7 @@ def factorial(n):
     else:
         return n * factorial(n - 1)
 
+
 def sifter(systems,p_shards,repair_time,failure_rate):   # feed this with the surviving systems. It will return the instances of data losses, and the systems that might still lose data
     instances=0
     systems_to_keep=[]

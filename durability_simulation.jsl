@@ -1,7 +1,7 @@
-﻿//August 2021, A Monte Carlo sim to compute data durability, contact quarktetra@gmail.com for questions
-//see https://tetraquark.netlify.app/post/raid_durability/   for details
+﻿scr_path=Get Default Directory();scr_path=substr(scr_path,2,length(scr_path));scr_name = Current Window() << get window title;
 
-scr_path=Get Default Directory();scr_path=substr(scr_path,2,length(scr_path));scr_name = Current Window() << get window title;
+//August 2021, A Monte Carlo sim to compute data durability, contact quarktetra@gmail.com for questions
+//see https://tetraquark.netlify.app/post/raid_durability/   for details
 
 start_time=today();
 num_simulations=200000;
