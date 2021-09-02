@@ -1,0 +1,121 @@
+﻿//August 2021, A Monte Carlo sim to compute data durability, contact quarktetra@gmail.com for questions
+//see https://tetraquark.netlify.app/post/raid_durability/   for details
+
+scr_path=Get Default Directory();scr_path=substr(scr_path,2,length(scr_path));scr_name = Current Window() << get window title;
+
+start_time=today();
+num_simulations=200000;
+num_drives_per_system=12;
+redundancy=1;
+max_year=1;
+AFR_val=1; //This is in %
+lambda_val=-365.25/(log(1-AFR_val/100));
+print("Lambda in years:"|| char(lambda_val/365.25)||",  MTBF:"||char(round(24*lambda_val/1000000,2))||" Million hours, "||char(round(lambda_val/365,1))||" years"  );
+
+repair_time= 10; //in days
+
+MTDL_th_val0_generic=lambda_val*(lambda_val/repair_time)^redundancy/((num_drives_per_system-redundancy)*Factorial(num_drives_per_system)/(Factorial(num_drives_per_system-redundancy)*Factorial(redundancy)));
+theory_dppm=round(1000000*(1-exp(-max_year*365.25/MTDL_th_val0_generic))); //in %
+//print("theory appr dppm @ redundancy="||char(redundancy)||":   "||char(round(theory_dppm)));
+print("Expected number of failures with "||char(num_simulations)||" simulations:"||char(round(num_simulations*(1-exp(-max_year*365.25/MTDL_th_val0_generic))))||". Theoretical  reli non: "
+||char(round(-log10(1-exp(-max_year*365.25/MTDL_th_val0_generic)),1) ));
+//print("theory  reli: "||char(exp(-max_year*365.25/MTDL_th_val0_generic)));
+
+
+stepsize=12; //in months
+try(dtsum<<close window());try(dtt<<close window());
+newname="Reli simulation "||substitute(substitute(MDYHMS(today()),"/","_"),":","_");
+dtt=new table(newname,invisible(1));
+dtt<< add rows(num_simulations*num_drives_per_system);
+eval(parse( "dtt<<new column(\!"sys_id\!",formula( 1+ Floor( (Row() - 1) / "||char(num_drives_per_system)||" )))"  ));
+eval(parse( "dtt<<new column(\!"drv_id\!",formula( Row() - Floor( (Row() - 1) / "||char(num_drives_per_system)||" ) * "||char(num_drives_per_system)||"))"  ));
+ dtt<<delete column(1); wait(1);:drv_id<<delete formula();:sys_id<<delete formula();
+
+colname="drv_failure_time"; //_lambda_val="||char(lambda_valv)||"_beta="||char(betav);
+eval(parse( "dtt<<new column(\!""||colname||"\!",formula("||char(lambda_val)||"*Random Exp()))"  ));
+column(colname)<<delete formula();
+
+return_nf=function({},
+		dtt<<select where(:drv_failure_time>max_year*365);
+		dtt<<delete rows();  // these failed after the time frame we are looking at
+		dtmin=dtt<<Summary(	Group( :sys_id ));
+		dtmin<<select where(:N Rows<=redundancy);	dtmin<<close window();dtt<<delete rows();
+		if(nrows(dtt)>0,
+			dtt << Sort( By(:sys_id,column(colname)), Order(Ascending,Ascending), Replace Table);
+			dtt<<new column("num_failures",numeric);dtt<<new column("num_max_failures",numeric);
+
+			:num_failures[1]=1;:num_max_failures[1]=1;
+			maxseen=1;toberecovered={};
+			for(rr=2,rr<=nrows(dtt),rr++,
+				rr_time=:drv_failure_time[rr];
+				rr_m1_time=:drv_failure_time[rr-1];
+				if(:sys_id[rr-1]!=:sys_id[rr],:num_failures[rr]=1;	toberecovered={};maxseen=1;:num_max_failures[rr]=1);
+
+				if(:sys_id[rr-1]==:sys_id[rr],
+					Insert Into( toberecovered,:drv_failure_time[rr-1]);
+					tosubtracted=0;
+					for(rc=nitems(toberecovered),rc>=1,rc--,
+					  if(:drv_failure_time[rr]-toberecovered[rc]>repair_time, tosubtracted++;remove from(toberecovered,rc))
+					  );
+						
+						:num_failures[rr]=:num_failures[rr-1]-tosubtracted+1;
+						if(:num_failures[rr]>maxseen,maxseen=:num_failures[rr]);
+						:num_max_failures[rr]	=maxseen
+				);
+
+				
+			);
+			
+			try(dtt<<delete column("failed"));
+			dtt<<new column("failed",numeric);
+			Eval(Substitute(Expr(:failed<<set formula(if(num_max_failures>_red,1,0))), Expr(_red), redundancy));
+
+			dts=dtt<<summary(group(:sys_id,:failed));
+			dts<<select where(:failed==0);dts<<delete rows();
+			n_failed=nrows(dts);
+			
+			if(n_failed==0,dts<<close window();dtt<<delete column("failed");dtt<<delete column("num_failures");dtt<<delete column("num_max_failures");,
+				
+				dts<<new column("failed_system",formula(1));:failed_system<<delete formula();dts<<delete column("N Rows");dts<<delete column("failed");
+
+				dtt <<Update(With( dts),Match Columns( :sys_id = :sys_id ));dts<<close window();
+
+				dtt<<select where(:failed_system==1);dtt<<delete rows(); //take out the failed systems
+				if(nrows(dtt)>0,
+							dtt<<delete column("failed_system");
+							dtt<<delete column("failed");
+
+							dtmin=dtt<<Summary(	Group( :sys_id ),Min( :drv_failure_time ));
+							column("Min(drv_failure_time)")<<set name("drv_failure_time_1");
+							dtmin<<select where(:N Rows==1);dtmin<<delete column("N Rows");	dtt<<delete rows();
+							dtt <<Update(With( dtmin),Match Columns( :sys_id = :sys_id )); dtmin<<close window();
+
+							dtt<<delete column("num_failures");dtt<<delete column("num_max_failures");
+
+							colnameR="drv_failure_timeR"; //_lambda_val="||char(lambda_valv)||"_beta="||char(betav);
+							eval(parse( "dtt<<new column(\!""||colnameR||"\!",formula("||char(lambda_val)||"*Random Exp()))"  ));
+							column(colnameR)<<delete formula();
+									
+							:drv_failure_time<<set name("drv_failure_time0");
+
+							eval(parse("dtt<<new column(\!"drv_failure_time\!",formula(if(drv_failure_time_1==drv_failure_time0,drv_failure_timeR+"||char(repair_time)||",drv_failure_time0)))"));
+
+							:drv_failure_time<<delete formula();
+							dtt<<delete column("drv_failure_time_1");dtt<<delete column("drv_failure_time0");dtt<<delete column("drv_failure_timeR");
+						);	
+					);	
+		);
+		n_failed;
+);
+rounds={};cumul=0;iimax=0;
+for(ii=1,ii<=2,ii++,
+if(nrows(dtt)>0,iimax=ii;rounds[ii]=return_nf();
+cumul=cumul+rounds[ii]));
+//print("calculated "||char(iimax)||" iterations");try(dtt<<close window());
+
+print("MC  number of sysfailures @ redundancy="||char(redundancy)||"= "||char(cumul)||" out of "||char(num_simulations) );
+
+
+print("theory  reli non: "||char(round(-log10(1-exp(-max_year*365.25/MTDL_th_val0_generic)),1))|| " vs MC "||char(round(-log10(cumul/num_simulations),1)) );
+
+
