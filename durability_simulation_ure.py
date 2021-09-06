@@ -5,8 +5,9 @@
 # Created:     25/08/2021
 # Requires:    Python3
 #-------------------------------------------------------------------------------
-# run this from the cmd window as: durability_simulation.py 20 2 1 1 20 50 1
-# in IDE, use command line parameters: 20 2 1 1 20 50 1
+# run this from the cmd window as: durability_simulation.py 20 2 1 1 20 50 1  1
+# in IDE, use command line parameters: 20 2 1 1 20 50 1 1
+# the last integer enables/disables the simulation.
 # see https://tetraquark.netlify.app/post/raid_durability/   for details
 import argparse
 import math
@@ -70,7 +71,7 @@ def h_calc(d_shards,uer,d_cap):
        return 1-math.exp(-uer*d_shards*d_cap*8/1000)
 
 
-def simulate(t_shards, p_shards, afr,uer, d_cap, r_speed,simulation_size_scale):
+def simulate(t_shards, p_shards, afr,uer, d_cap, r_speed,simulation_size_scale,simulation_enabled):
     d_shards =t_shards -p_shards
     repair_time=10**6*d_cap/r_speed/(60*60*24)
     failure_rate= -365.25/math.log(1-afr/100)     # this is in 1/days
@@ -85,30 +86,33 @@ def simulate(t_shards, p_shards, afr,uer, d_cap, r_speed,simulation_size_scale):
         ptext=" parities"
     else:
         ptext=" parity"
-    print("Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
-        str(p_shards)+ptext+", i.e.,"+ str(d_shards) +"+"+str(p_shards)+ ",  "+str(afr)+"% AFR, uer="+ str(uer)+" * 10^-{15}, "+str(d_cap)+"TB drive capacity, and "+
-        str(r_speed)+"MB/s recovery speed "+ "("+str(round(repair_time,1)) +" days)." )
+    if simulation_enabled:
+        print("Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
+            str(p_shards)+ptext+", i.e.,"+ str(d_shards) +"+"+str(p_shards)+ ",  "+str(afr)+"% AFR, uer="+ str(uer)+" * 10^-{15}, "+str(d_cap)+"TB drive capacity, and "+
+            str(r_speed)+"MB/s recovery speed "+ "("+str(round(repair_time,1)) +" days)." )
     print(  "prob of UER="+str(round(hval,2)   )    +     ". Theoretical predictions:  NoN= "+    str(round(nines_th,2))+" nines, NoN wUER= " +    str(round(nines_th_uer,2))+" nines. " )
 
+
     #initiate the full simulation data
-    systems=[]
-    for sysid in range(0,sim_size):
-        systems.append(np.random.exponential(failure_rate, t_shards))
+    if simulation_enabled:
+        systems=[]
+        for sysid in range(0,sim_size):
+            systems.append(np.random.exponential(failure_rate, t_shards))
 
-    totalinstances=0
-    totalinstances_wuer=0
-    while len(systems)>0:
-        returned=sifter(systems,p_shards,repair_time,failure_rate,hval)
-        systems=returned[0]
-        totalinstances=totalinstances+returned[1]
-        totalinstances_wuer=totalinstances_wuer+returned[2]
+        totalinstances=0
+        totalinstances_wuer=0
+        while len(systems)>0:
+            returned=sifter(systems,p_shards,repair_time,failure_rate,hval)
+            systems=returned[0]
+            totalinstances=totalinstances+returned[1]
+            totalinstances_wuer=totalinstances_wuer+returned[2]
 
-   # print("Simulated "+str(sim_size)+ " systems with " +str(totalinstances ))
-    if totalinstances>0:
-        print("Simulation Results:"+str(totalinstances )+"  data loss instances: NoN= "
-        +str(round(-math.log10(totalinstances/sim_size),2))+" nines, NoN wUER= "+ str(round(-math.log10(totalinstances_wuer/sim_size),2))+ " nines" )
-    else:
-        print("No failures detected. Try to increase the simulation size!")
+       # print("Simulated "+str(sim_size)+ " systems with " +str(totalinstances ))
+        if totalinstances>0:
+            print("Simulation Results:"+str(totalinstances )+"  data loss instances: NoN= "
+            +str(round(-math.log10(totalinstances/sim_size),2))+" nines, NoN wUER= "+ str(round(-math.log10(totalinstances_wuer/sim_size),2))+ " nines" )
+        else:
+            print("No failures detected. Try to increase the simulation size!")
 
      #with one sigma="+str(round(1/(totalinstances**0.5),2))
 def main():
@@ -120,8 +124,9 @@ def main():
     parser.add_argument('drive_capacity_in_TB', type=float),
     parser.add_argument('recovery_speed_in_MBps', type=float),
     parser.add_argument('simulation_size_scale', type=int),
+    parser.add_argument('simulation_enabled', type=int),
     args = parser.parse_args()
-    simulate(args.number_of_total_shards, args.number_of_parity_shards, args.annual_failure_rate_in_pct,args.uer, args.drive_capacity_in_TB, args.recovery_speed_in_MBps,args.simulation_size_scale)
+    simulate(args.number_of_total_shards, args.number_of_parity_shards, args.annual_failure_rate_in_pct,args.uer, args.drive_capacity_in_TB, args.recovery_speed_in_MBps,args.simulation_size_scale,args.simulation_enabled)
 
 
 if __name__ == '__main__':
