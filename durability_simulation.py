@@ -53,7 +53,7 @@ def simulate(t_shards, p_shards, afr, d_cap, r_speed,simulation_size_scale):
         ptext=" parities"
     else:
         ptext=" parity"
-    print("Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
+    print("Please Wait: Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
         str(p_shards)+ptext+", i.e.,"+ str(d_shards) +"+"+str(p_shards)+ ",  "+str(afr)+"% AFR, "+str(d_cap)+"TB drive capacity, and "+
         str(r_speed)+"MB/s recovery speed "+ "("+str(round(repair_time,1)) +" days). Theoretical prediction is "+
         str(round(nines_th,2))+" nines. " )
@@ -77,6 +77,13 @@ def simulate(t_shards, p_shards, afr, d_cap, r_speed,simulation_size_scale):
     else:
         print("No failures detected. Try to increase the simulation size!")
 
+class Args:
+  number_of_total_shards = 20
+  number_of_parity_shards = 2
+  annual_failure_rate_in_pct = 2
+  drive_capacity_in_TB = 20
+  recovery_speed_in_MBps=50
+  simulation_size_scale=1
 
 def main():
     parser = argparse.ArgumentParser()
@@ -86,7 +93,8 @@ def main():
     parser.add_argument('drive_capacity_in_TB', type=float),
     parser.add_argument('recovery_speed_in_MBps', type=float),
     parser.add_argument('simulation_size_scale', type=int),
-    args = parser.parse_args()
+    args = parser.parse_args() # disable this if you do not want to use command line arguments. Enable the next line to use the inputs in Args class
+    #args=Args()
     simulate(args.number_of_total_shards, args.number_of_parity_shards, args.annual_failure_rate_in_pct, args.drive_capacity_in_TB, args.recovery_speed_in_MBps,args.simulation_size_scale)
 
 

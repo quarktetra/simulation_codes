@@ -87,7 +87,7 @@ def simulate(t_shards, p_shards, afr,uer, d_cap, r_speed,simulation_size_scale,s
     else:
         ptext=" parity"
     if simulation_enabled:
-        print("Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
+        print("Please Wait: Running "+str(sim_size)+" simulations: "+str(t_shards) +" total shards with "+
             str(p_shards)+ptext+", i.e.,"+ str(d_shards) +"+"+str(p_shards)+ ",  "+str(afr)+"% AFR, uer="+ str(uer)+" * 10^-{15}, "+str(d_cap)+"TB drive capacity, and "+
             str(r_speed)+"MB/s recovery speed "+ "("+str(round(repair_time,1)) +" days)." )
     print(  "prob of UER="+str(round(hval,2)   )    +     ". Theoretical predictions:  NoN= "+    str(round(nines_th,2))+" nines, NoN wUER= " +    str(round(nines_th_uer,2))+" nines. " )
@@ -115,6 +115,17 @@ def simulate(t_shards, p_shards, afr,uer, d_cap, r_speed,simulation_size_scale,s
             print("No failures detected. Try to increase the simulation size!")
 
      #with one sigma="+str(round(1/(totalinstances**0.5),2))
+
+class Args:
+  number_of_total_shards = 20
+  number_of_parity_shards = 2
+  annual_failure_rate_in_pct = 2
+  uer=1
+  drive_capacity_in_TB = 20
+  recovery_speed_in_MBps=50
+  simulation_size_scale=1
+  simulation_enabled=1 #make this 0 to operate the code in the calcualator mode
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('number_of_total_shards', type=int),
@@ -125,7 +136,8 @@ def main():
     parser.add_argument('recovery_speed_in_MBps', type=float),
     parser.add_argument('simulation_size_scale', type=int),
     parser.add_argument('simulation_enabled', type=int),
-    args = parser.parse_args()
+    args = parser.parse_args() # disable this if you do not want to use command line arguments. Enable the next line to use the inputs in Args class
+    #args=Args()
     simulate(args.number_of_total_shards, args.number_of_parity_shards, args.annual_failure_rate_in_pct,args.uer, args.drive_capacity_in_TB, args.recovery_speed_in_MBps,args.simulation_size_scale,args.simulation_enabled)
 
 
