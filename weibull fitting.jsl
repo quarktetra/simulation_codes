@@ -1,0 +1,4 @@
+dt=current data table();
+dt<<add rows(1000000-nrows(dt));
+dt<<new column("ft_sim",formula(Random Exp() * 79*365.25));
+dt<<new column("ft_sim_c",formula(if(:ft_sim<365.15,ft_sim,.)));
